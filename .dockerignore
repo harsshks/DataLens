@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+coverage
+uploads
+*.md
+.vscode
+__pycache__
+*.pyc

@@ -1,0 +1,11 @@
+city,age,income,joined_on,status,notes,country
+Delhi,34,52000,2021-03-12,active,,India
+delhi,41,61000,2021-07-01,ACTIVE,,India
+DELHI,29,abc,not-a-date,active,,India
+Mumbai,38,58000,2022-01-15,inactive,,India
+Mumbai,38,58000,2022-01-15,inactive,,India
+Chennai,,72000,2020-11-03,active,,India
+Kolkata,1200,54000,2023-04-22,pending,,India
+Pune,25,,2023-08-30,active,,India
+Hyderabad,31,49000,2021-12-09,ACTIVE,,India
+Jaipur,27,51000,2022-05-18,active,,India
