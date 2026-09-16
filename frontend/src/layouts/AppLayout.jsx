@@ -23,7 +23,7 @@ export default function AppLayout({ children }) {
       <aside className="sidebar">
         <div className="sidebar-brand">
           <span className="brand-icon">◈</span>
-          <span className="brand-name">DataQuality</span>
+          <span className="brand-name">DataLens</span>
         </div>
 
         <nav className="sidebar-nav">
@@ -64,7 +64,7 @@ export default function AppLayout({ children }) {
 
       {/* Mobile topbar */}
       <div className="mobile-topbar">
-        <span className="brand-name">◈ DataQuality</span>
+        <span className="brand-name">◈ DataLens</span>
         <button className="btn btn-ghost btn-sm" onClick={() => setMenuOpen((o) => !o)}>
           ☰
         </button>

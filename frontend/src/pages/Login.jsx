@@ -28,7 +28,7 @@ export default function Login() {
       <div className="auth-card">
         <div className="auth-header">
           <div className="brand-icon-lg">◈</div>
-          <h1>DataQuality</h1>
+          <h1>DataLens</h1>
           <p>Sign in to your account</p>
         </div>
 

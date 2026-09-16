@@ -28,7 +28,7 @@ export default function Register() {
       <div className="auth-card">
         <div className="auth-header">
           <div className="brand-icon-lg">◈</div>
-          <h1>DataQuality</h1>
+          <h1>DataLens</h1>
           <p>Create your account</p>
         </div>
 
