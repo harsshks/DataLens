@@ -34,7 +34,9 @@ const config = {
     password: process.env.ADMIN_PASSWORD,
     name: process.env.ADMIN_NAME || 'Admin',
   },
-  corsOrigin: process.env.CORS_ORIGIN || '*',
+  corsOrigin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+    : '*',
 };
 
 module.exports = config;
