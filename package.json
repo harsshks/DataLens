@@ -1,5 +1,5 @@
 {
-  "name": "dataset-quality-monitoring-api",
+  "name": "datalens",
   "version": "1.0.0",
   "description": "REST API for uploading CSV datasets and generating structured data-quality reports",
   "main": "src/server.js",

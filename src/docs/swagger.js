@@ -4,7 +4,7 @@ const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: '3.0.3',
     info: {
-      title: 'Dataset Quality Monitoring API',
+      title: 'DataLens API',
       version: '1.0.0',
       description:
         'Upload CSV datasets, run Pandas-based quality analysis, and inspect versioned quality reports.',

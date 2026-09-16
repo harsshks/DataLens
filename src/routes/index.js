@@ -14,7 +14,7 @@ router.get('/health', (req, res) => {
     success: true,
     data: {
       status: 'ok',
-      service: 'dataset-quality-monitoring-api',
+      service: 'datalens',
     },
   });
 });

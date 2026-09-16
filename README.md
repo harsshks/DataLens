@@ -1,4 +1,4 @@
-# Dataset Quality Monitoring API
+# DataLens
 
 REST API for uploading CSV files, analyzing data quality with Python (Pandas/NumPy), and storing versioned quality reports in MySQL.
 

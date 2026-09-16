@@ -26,7 +26,7 @@ function createApp() {
     res.status(200).json({
       success: true,
       data: {
-        name: 'Dataset Quality Monitoring API',
+        name: 'DataLens API',
         docs: '/api/docs',
         health: '/api/health',
       },
