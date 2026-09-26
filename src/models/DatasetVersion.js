@@ -44,6 +44,11 @@ const DatasetVersion = sequelize.define(
       allowNull: true,
       field: 'quality_score',
     },
+    scoreBreakdown: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      field: 'score_breakdown',
+    },
     uploadedAt: {
       type: DataTypes.DATE,
       allowNull: false,

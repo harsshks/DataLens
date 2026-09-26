@@ -147,6 +147,9 @@ describe('datasets', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.issues.length).toBeGreaterThan(0);
     expect(res.body.data.summary.duplicate_rows).toBe(1);
+    expect(res.body.data.score_breakdown.starting_score).toBe(100);
+    expect(res.body.data.score_breakdown.signals).toHaveLength(7);
+    expect(res.body.data.score_breakdown.score).toBe(res.body.data.quality_score);
   });
 
   test('deletes a dataset', async () => {
@@ -285,6 +288,8 @@ describe('datasets', () => {
     expect(res.body.data.version_number).toBe(1);
     expect(res.body.data.dataset_id).toBe(created.body.data.id);
     expect(Array.isArray(res.body.data.issues)).toBe(true);
+    expect(res.body.data.score_breakdown.score).toBe(res.body.data.quality_score);
+    expect(res.body.data.score_breakdown.signals).toHaveLength(7);
   });
 
   test('returns 404 for a non-existent version', async () => {

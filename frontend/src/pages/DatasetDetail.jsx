@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import AppLayout from '../layouts/AppLayout';
 import QualityScore from '../components/QualityScore';
+import ScoreBreakdown from '../components/ScoreBreakdown';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
 import SeverityBadge from '../components/SeverityBadge';
@@ -195,6 +196,11 @@ export default function DatasetDetail() {
                 <QualityScore score={quality.quality_score} />
               </div>
             </div>
+            {quality.score_breakdown && (
+              <div className="card" style={{ flex: 1, minWidth: 280, padding: '16px 20px' }}>
+                <ScoreBreakdown breakdown={quality.score_breakdown} />
+              </div>
+            )}
           </div>
 
           <div className="stat-grid" style={{ marginBottom: 20 }}>

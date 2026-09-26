@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS dataset_versions (
   row_count INT UNSIGNED NULL,
   column_count INT UNSIGNED NULL,
   quality_score INT NULL,
+  score_breakdown JSON NULL,
   uploaded_at DATETIME NOT NULL,
   UNIQUE KEY uq_dataset_version (dataset_id, version_number),
   CONSTRAINT fk_versions_dataset FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE CASCADE

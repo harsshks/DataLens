@@ -120,7 +120,7 @@ router.delete('/:id', datasetIdRules, datasetController.remove);
  *         schema: { type: integer }
  *     responses:
  *       200:
- *         description: Quality report
+ *         description: Quality report with an explainable score_breakdown (100 minus capped per-signal deductions)
  */
 router.get('/:id/quality', datasetIdRules, datasetController.quality);
 

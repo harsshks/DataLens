@@ -11,7 +11,7 @@ const { DATASET_STATUS, ROLES } = require('../config/constants');
 const AppError = require('../utils/AppError');
 const { sanitizeOriginalName } = require('../utils/filename');
 const analysisService = require('./analysisService');
-const { scoreFromAnalysis } = require('./scoringService');
+const { scoreFromAnalysis, breakdownFromAnalysis, breakdownFromIssues } = require('./scoringService');
 
 function publicDataset(dataset) {
   return {
@@ -41,6 +41,7 @@ async function getOwnedDataset(datasetId, user, { allowAdmin = false } = {}) {
 }
 
 async function persistAnalysis(dataset, version, analysis, score, transaction) {
+  const breakdown = breakdownFromAnalysis(analysis);
   const columns = (analysis.columns || []).map((col) => ({
     datasetId: dataset.id,
     versionId: version.id,
@@ -91,6 +92,7 @@ async function persistAnalysis(dataset, version, analysis, score, transaction) {
       rowCount: analysis.row_count,
       columnCount: analysis.column_count,
       qualityScore: score,
+      scoreBreakdown: breakdown,
     },
     { transaction }
   );
@@ -102,6 +104,7 @@ async function analyzeAndStore({ dataset, filePath, originalFilename, versionNum
   try {
     const analysis = await analysisService.runPythonAnalysis(filePath);
     const score = scoreFromAnalysis(analysis);
+    const breakdown = breakdownFromAnalysis(analysis);
 
     const result = await sequelize.transaction(async (transaction) => {
       const version = await DatasetVersion.create(
@@ -113,6 +116,7 @@ async function analyzeAndStore({ dataset, filePath, originalFilename, versionNum
           rowCount: analysis.row_count,
           columnCount: analysis.column_count,
           qualityScore: score,
+          scoreBreakdown: breakdown,
           uploadedAt: new Date(),
         },
         { transaction }
@@ -220,6 +224,19 @@ async function getLatestVersion(dataset) {
   return version;
 }
 
+function resolveScoreBreakdown(version, issues) {
+  let stored = version.scoreBreakdown;
+  if (typeof stored === 'string') {
+    try {
+      stored = JSON.parse(stored);
+    } catch {
+      stored = null;
+    }
+  }
+  if (stored && Array.isArray(stored.signals)) return stored;
+  return breakdownFromIssues(version.rowCount, version.columnCount, issues);
+}
+
 async function getQualityReport(datasetId, user) {
   const dataset = await getOwnedDataset(datasetId, user);
   const version = await getLatestVersion(dataset);
@@ -250,6 +267,7 @@ async function getQualityReport(datasetId, user) {
     dataset_id: dataset.id,
     version_number: version.versionNumber,
     quality_score: dataset.qualityScore,
+    score_breakdown: resolveScoreBreakdown(version, issues),
     summary,
     issues: issues.map((issue) => ({
       type: issue.issueType,
@@ -369,6 +387,7 @@ async function getVersion(datasetId, versionNumber, user) {
     row_count: version.rowCount,
     column_count: version.columnCount,
     quality_score: version.qualityScore,
+    score_breakdown: resolveScoreBreakdown(version, issues),
     original_filename: version.originalFilename,
     uploaded_at: version.uploadedAt,
     issues: issues.map((issue) => ({

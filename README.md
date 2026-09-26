@@ -109,10 +109,12 @@ Start at **100**, subtract, then clamp to **[0, 100]**.
 | Missing cells | 0.4 points per 1% of all cells | 20 |
 | Duplicate rows | 0.5 points per 1% of rows | 15 |
 | IQR outliers | 0.4 points per 1% of cells | 10 |
-| Empty columns | 8 points each | 16 |
-| Constant columns | 3 points each | 9 |
-| Invalid types/dates | 5 if any, +1 per extra incident | 10 |
+| Empty columns | 8 points each | 20 |
+| Constant columns | 3 points each | 12 |
+| Invalid types/dates | 5 if any, +1 per extra incident | 15 |
 | Inconsistent categories | 2 points per affected column | 10 |
+
+`GET /api/datasets/:id/quality` includes `score_breakdown`: each signal’s deduction, cap, whether the cap applied, then `100 − total` clamped to `[0, 100]` and rounded. Golden tests in `tests/scoring.test.js` lock those line items.
 
 This is a heuristic for a portfolio demo, not a statistical quality standard.
 
