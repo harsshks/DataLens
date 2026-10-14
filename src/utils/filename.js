@@ -6,8 +6,11 @@ function sanitizeOriginalName(originalName) {
   return base.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 180) || 'upload.csv';
 }
 
-function generateStoredFilename() {
-  return `${uuidv4()}.csv`;
+function generateStoredFilename(originalName) {
+  const ext = originalName
+    ? path.extname(originalName).toLowerCase() || '.csv'
+    : '.csv';
+  return `${uuidv4()}${ext}`;
 }
 
 function assertSafeStoredPath(filePath, uploadRoot) {

@@ -19,26 +19,31 @@ const storage = multer.diskStorage({
     cb(null, uploadRoot);
   },
   filename: (req, file, cb) => {
-    cb(null, generateStoredFilename());
+    cb(null, generateStoredFilename(file.originalname));
   },
 });
+
+const ALLOWED_EXTENSIONS = new Set(['.csv', '.xlsx', '.xls', '.json']);
 
 const ALLOWED_MIMES = new Set([
   'text/csv',
   'application/csv',
   'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/json',
+  'text/json',
   'text/plain',
   'application/octet-stream',
 ]);
 
 function fileFilter(req, file, cb) {
   const ext = path.extname(file.originalname || '').toLowerCase();
-  if (ext !== '.csv') {
-    cb(new AppError('Only CSV files are supported', 400, 'INVALID_FILE'));
+  if (!ALLOWED_EXTENSIONS.has(ext)) {
+    cb(new AppError('Only CSV, Excel (.xlsx/.xls), and JSON files are supported', 400, 'INVALID_FILE'));
     return;
   }
   if (file.mimetype && !ALLOWED_MIMES.has(file.mimetype)) {
-    cb(new AppError('Only CSV files are supported', 400, 'INVALID_FILE'));
+    cb(new AppError('Only CSV, Excel (.xlsx/.xls), and JSON files are supported', 400, 'INVALID_FILE'));
     return;
   }
   cb(null, true);
@@ -55,7 +60,7 @@ const upload = multer({
 
 function requireCsvFile(req, res, next) {
   if (!req.file) {
-    next(new AppError('A CSV file is required', 400, 'FILE_REQUIRED'));
+    next(new AppError('A file is required (CSV, Excel, or JSON)', 400, 'FILE_REQUIRED'));
     return;
   }
   next();

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Analyze a CSV file and print a JSON quality report to stdout."""
+"""Analyze a CSV, Excel, or JSON file and print a JSON quality report to stdout."""
 
 from __future__ import annotations
 
@@ -45,6 +45,34 @@ def read_csv(path: str) -> pd.DataFrame:
         except Exception as exc:  # noqa: BLE001
             last_error = exc
     raise ValueError(f"Unable to read CSV: {last_error}")
+
+
+def read_excel(path: str) -> pd.DataFrame:
+    try:
+        df = pd.read_excel(path, dtype=str, keep_default_na=False)
+        return df
+    except Exception as exc:
+        raise ValueError(f"Unable to read Excel file: {exc}") from exc
+
+
+def read_json_file(path: str) -> pd.DataFrame:
+    try:
+        df = pd.read_json(path, dtype=str)
+        # normalize nested objects to strings so the rest of the pipeline works
+        for col in df.columns:
+            df[col] = df[col].apply(lambda v: str(v) if isinstance(v, (dict, list)) else v)
+        return df.astype(str).replace("nan", "")
+    except Exception as exc:
+        raise ValueError(f"Unable to read JSON file: {exc}") from exc
+
+
+def read_file(path: str) -> pd.DataFrame:
+    ext = path.rsplit(".", 1)[-1].lower() if "." in path else ""
+    if ext in ("xlsx", "xls"):
+        return read_excel(path)
+    if ext == "json":
+        return read_json_file(path)
+    return read_csv(path)
 
 
 def blank_to_na(frame: pd.DataFrame) -> pd.DataFrame:
@@ -143,7 +171,7 @@ def detect_inconsistent_categories(series: pd.Series, column_name: str) -> dict 
 
 
 def analyze(path: str) -> dict:
-    raw = read_csv(path)
+    raw = read_file(path)
     if raw.shape[1] == 0:
         raise ValueError("CSV has no columns")
 

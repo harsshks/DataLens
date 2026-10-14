@@ -1,6 +1,14 @@
 import { useState, useRef, useCallback } from 'react';
 import { datasetService } from '../services/datasetService';
 
+const ACCEPTED_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.json'];
+const ACCEPTED_MIME = [
+  'text/csv', 'application/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/json',
+];
+
 export default function UploadModal({ onClose, onSuccess, datasetId = null }) {
   const [file, setFile] = useState(null);
   const [name, setName] = useState('');
@@ -14,8 +22,9 @@ export default function UploadModal({ onClose, onSuccess, datasetId = null }) {
 
   function pickFile(f) {
     if (!f) return;
-    if (!f.name.toLowerCase().endsWith('.csv')) {
-      setError('Only CSV files are supported.');
+    const ext = '.' + f.name.split('.').pop().toLowerCase();
+    if (!ACCEPTED_EXTENSIONS.includes(ext)) {
+      setError('Only CSV, Excel (.xlsx/.xls), and JSON files are supported.');
       return;
     }
     setError('');
@@ -78,12 +87,12 @@ export default function UploadModal({ onClose, onSuccess, datasetId = null }) {
             onClick={() => inputRef.current?.click()}
           >
             <div className="drop-icon">⬆</div>
-            <div className="drop-text">Drag & drop a CSV file here</div>
-            <div className="drop-subtext">or click to browse</div>
+            <div className="drop-text">Drag & drop a file here</div>
+            <div className="drop-subtext">CSV, Excel (.xlsx/.xls), or JSON · or click to browse</div>
             <input
               ref={inputRef}
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls,.json"
               style={{ display: 'none' }}
               onChange={(e) => pickFile(e.target.files[0])}
             />
@@ -108,7 +117,7 @@ export default function UploadModal({ onClose, onSuccess, datasetId = null }) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={file.name.replace(/\.csv$/i, '')}
+              placeholder={file.name.replace(/\.(csv|xlsx|xls|json)$/i, '')}
             />
           </div>
         )}
