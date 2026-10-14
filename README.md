@@ -1,303 +1,213 @@
 # DataLens
 
-REST API for uploading CSV files, analyzing data quality with Python (Pandas/NumPy), and storing versioned quality reports in MySQL.
+**DataLens** is a full-stack data quality analysis platform. Upload a CSV, Excel, or JSON dataset and get an instant, transparent quality score with a detailed breakdown of every issue found — missing values, duplicates, outliers, type errors, inconsistent categories, and more. Track improvements across dataset versions with side-by-side comparisons.
 
-This is a backend portfolio project. It is designed to be readable and technically honest, not a production-scale platform.
+**Live Demo:** [https://frontend-dun-two-74.vercel.app](https://frontend-dun-two-74.vercel.app)  
+**API Docs:** [https://datalens-api-rate.onrender.com/api/docs](https://datalens-api-rate.onrender.com/api/docs)
 
-## Problem statement
+---
 
-Messy CSVs are common in internships and data products: missing values, duplicates, mixed types, outliers, and inconsistent labels. This API gives authenticated users a structured quality report and a transparent 0–100 score after each upload, plus version history so they can see whether a later file improved.
+## What it does
 
-The backend does not depend on any specific public dataset. Any valid CSV can be uploaded.
+Most data quality tools give you a number. DataLens shows you *why*.
+
+Every upload produces a 0–100 quality score with a fully transparent breakdown — you can see exactly how many points were deducted for missing values, how many for outliers, and why. Upload a cleaner version of the same dataset and the comparison view shows exactly what improved and what's still broken.
+
+---
 
 ## Features
 
-- User registration and JWT login (`USER` / `ADMIN` roles)
-- CSV upload with extension, MIME, and size checks
-- Safe stored filenames (UUID), original name kept only as metadata
-- Python analysis for missing values, duplicates, types, outliers (IQR), dates, empty/constant columns, and inconsistent categories
-- Transparent quality score stored with each dataset version
-- Quality report, issue filters, and column statistics
-- Version upload and comparison (score change, new vs resolved issues)
-- Small admin statistics endpoint
-- Swagger UI at `/api/docs`
-- Jest/Supertest tests
-- Docker Compose for the API + MySQL
+- **Multi-format upload** — CSV, Excel (.xlsx / .xls), and JSON
+- **Automated quality analysis** — 9 checks powered by Python (Pandas + NumPy)
+- **Transparent scoring** — 0–100 score with a per-signal deduction breakdown
+- **Version history** — upload multiple versions of the same dataset
+- **Version comparison** — side-by-side diff of scores, new issues, and resolved issues
+- **Column statistics** — type detection, null counts, min/max/mean/median per column
+- **Issue filtering** — filter by severity (CRITICAL / HIGH / MEDIUM / LOW) and issue type
+- **Charts** — issues by severity pie chart, missing values by column bar chart, score trend across versions
+- **Role-based auth** — JWT authentication with USER and ADMIN roles
+- **Admin panel** — system-wide stats and full dataset visibility
+- **Swagger UI** — fully documented REST API at `/api/docs`
+
+---
+
+## Quality analysis
+
+`analysis/analyze_dataset.py` runs the following checks on every upload:
+
+| Check | Description |
+|---|---|
+| Missing values | Null count and percentage per column |
+| Duplicate rows | Exact row duplicates across the whole dataset |
+| Type detection | Boolean, integer, float, datetime, string — inferred per column |
+| Numeric stats | Min, max, mean, median, std dev for numeric columns |
+| IQR outliers | Tukey fence (1.5 × IQR) for numeric columns |
+| Invalid types / dates | Values that fail to parse once the column type is inferred |
+| Empty columns | Columns where every value is null |
+| Constant columns | Columns with exactly one unique non-null value |
+| Inconsistent categories | Case/whitespace variants of the same value (e.g. `Delhi` / `delhi` / `DELHI`) |
+
+---
+
+## Scoring methodology
+
+Start at **100**, deduct independently capped penalties, clamp to **[0, 100]**.
+
+| Signal | Deduction | Cap |
+|---|---|---|
+| Missing cells | 0.4 pts per 1% of all cells | 20 |
+| Duplicate rows | 0.5 pts per 1% of rows | 15 |
+| IQR outliers | 0.4 pts per 1% of cells | 10 |
+| Empty columns | 8 pts each | 20 |
+| Constant columns | 3 pts each | 12 |
+| Invalid types / dates | 5 pts if any, +1 per extra incident | 15 |
+| Inconsistent categories | 2 pts per affected column | 10 |
+
+The full breakdown is stored with every dataset version and returned by the API, so users can see exactly how the score was calculated.
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, Vite, React Router, Recharts, Axios |
+| Backend | Node.js, Express |
+| Database | PostgreSQL (Neon), Sequelize ORM |
+| Auth | JWT, bcryptjs |
+| Analysis | Python 3, Pandas, NumPy, openpyxl |
+| API Docs | OpenAPI 3 / Swagger UI |
+| Tests | Jest, Supertest (SQLite in-memory) |
+| Deployment | Render (API, Docker), Vercel (frontend) |
+
+---
 
 ## Architecture
 
 ```
-Client / Swagger UI
-        |
-        v
-Express REST API
-        |
-        +-- Auth (JWT, bcrypt)
-        +-- Dataset management
-        +-- File upload
-        +-- Quality reports / versions
-        |
-        v
-     MySQL
-
-After upload, Node starts analysis/analyze_dataset.py, reads JSON from stdout,
-computes the quality score, and writes results to MySQL.
-There is no job queue in this version; analysis runs in-process and the HTTP
-request waits for it to finish.
+React Frontend (Vercel)
+        │
+        ▼
+Express REST API (Render / Docker)
+        │
+        ├── Auth (JWT + bcrypt)
+        ├── File upload (multer — CSV, Excel, JSON)
+        ├── Python subprocess → analyze_dataset.py
+        ├── Scoring engine (Node.js)
+        └── Sequelize ORM
+        │
+        ▼
+PostgreSQL (Neon)
 ```
 
-Layering:
+After upload, Node spawns `analyze_dataset.py`, reads the JSON result from stdout, runs the scoring formula, and writes everything to the database in a single transaction. The HTTP request waits for analysis to complete and returns the full report.
 
-`routes → controllers → services → models`
-
-## Tech stack
-
-| Area | Choice |
-| --- | --- |
-| API | Node.js, Express, JavaScript |
-| Database | MySQL, Sequelize |
-| Auth | JWT, bcryptjs |
-| Analysis | Python, Pandas, NumPy |
-| Docs | OpenAPI / Swagger UI |
-| Tests | Jest, Supertest (SQLite in-memory) |
-| Run locally / demo | Docker Compose |
-
-## Database schema
-
-Canonical SQL is in `docs/schema.sql`. Tables are created at API startup with `sequelize.sync()`.
-
-- `users` — account, hashed password, role
-- `datasets` — latest file metadata, status, score, row/column counts
-- `dataset_versions` — one row per upload (`version_number` starts at 1)
-- `dataset_columns` — per-version column stats
-- `quality_issues` — per-version issues (`version_id` is required for comparison)
-
-Statuses: `UPLOADED`, `PROCESSING`, `COMPLETED`, `FAILED`.
+---
 
 ## API endpoints
 
 | Method | Path | Auth | Description |
-| --- | --- | --- | --- |
-| GET | `/api/health` | no | Liveness |
-| POST | `/api/auth/register` | no | Create user |
-| POST | `/api/auth/login` | no | JWT |
-| GET | `/api/auth/me` | yes | Current user |
-| POST | `/api/datasets` | yes | Upload CSV and analyze |
-| GET | `/api/datasets` | yes | List own datasets (`page`, `limit`, `status`, `sort`, `order`) |
-| GET | `/api/datasets/:id` | yes | Metadata |
-| GET | `/api/datasets/:id/quality` | yes | Full quality report |
-| GET | `/api/datasets/:id/issues` | yes | Filter `severity`, `issue_type`, `column` |
-| GET | `/api/datasets/:id/columns` | yes | Column statistics |
-| DELETE | `/api/datasets/:id` | yes | Delete dataset + analysis + files |
-| POST | `/api/datasets/:id/versions` | yes | Upload a new version |
-| GET | `/api/datasets/:id/versions` | yes | Version list |
-| GET | `/api/datasets/:id/versions/:version` | yes | One version |
-| GET | `/api/datasets/:id/compare/:version1/:version2` | yes | Compare versions |
-| GET | `/api/admin/statistics` | admin | Counts and average score |
+|---|---|---|---|
+| GET | `/api/health` | — | Liveness check |
+| POST | `/api/auth/register` | — | Create account |
+| POST | `/api/auth/login` | — | JWT login |
+| GET | `/api/auth/me` | ✓ | Current user |
+| POST | `/api/datasets` | ✓ | Upload file and analyze |
+| GET | `/api/datasets` | ✓ | List datasets (paginated, filterable) |
+| GET | `/api/datasets/:id` | ✓ | Dataset metadata |
+| GET | `/api/datasets/:id/quality` | ✓ | Full quality report + score breakdown |
+| GET | `/api/datasets/:id/issues` | ✓ | Issues (filter by severity / type / column) |
+| GET | `/api/datasets/:id/columns` | ✓ | Column statistics |
+| DELETE | `/api/datasets/:id` | ✓ | Delete dataset and files |
+| POST | `/api/datasets/:id/versions` | ✓ | Upload a new version |
+| GET | `/api/datasets/:id/versions` | ✓ | Version list |
+| GET | `/api/datasets/:id/versions/:v` | ✓ | Single version |
+| GET | `/api/datasets/:id/compare/:v1/:v2` | ✓ | Compare two versions |
+| GET | `/api/admin/statistics` | admin | System-wide stats |
 | GET | `/api/admin/datasets` | admin | All datasets |
 
-Users can only read/write their own datasets. Admins use `/api/admin/*`.
+---
 
-## Quality scoring methodology
+## Database schema
 
-Implemented in `src/services/scoringService.js` (Node is the source of truth stored in MySQL).
+Five tables managed by Sequelize sync:
 
-Start at **100**, subtract, then clamp to **[0, 100]**.
+- `users` — account, hashed password, role (USER / ADMIN)
+- `datasets` — latest metadata, status, quality score
+- `dataset_versions` — one row per upload, stores score breakdown as JSON
+- `dataset_columns` — per-version column statistics
+- `quality_issues` — per-version issues with type, severity, column, and count
 
-| Signal | Deduction | Cap |
-| --- | --- | --- |
-| Missing cells | 0.4 points per 1% of all cells | 20 |
-| Duplicate rows | 0.5 points per 1% of rows | 15 |
-| IQR outliers | 0.4 points per 1% of cells | 10 |
-| Empty columns | 8 points each | 20 |
-| Constant columns | 3 points each | 12 |
-| Invalid types/dates | 5 if any, +1 per extra incident | 15 |
-| Inconsistent categories | 2 points per affected column | 10 |
+Dataset statuses: `UPLOADED` → `PROCESSING` → `COMPLETED` / `FAILED`
 
-`GET /api/datasets/:id/quality` includes `score_breakdown`: each signal’s deduction, cap, whether the cap applied, then `100 − total` clamped to `[0, 100]` and rounded. Golden tests in `tests/scoring.test.js` lock those line items.
+---
 
-This is a heuristic for a portfolio demo, not a statistical quality standard.
-
-## Dataset analysis methodology
-
-`analysis/analyze_dataset.py` reads the CSV (UTF-8, then latin-1 fallback), treats blank/`NA`/`null` as missing, then:
-
-1. **Missing values** — null count and percentage per column
-2. **Duplicate rows** — `DataFrame.duplicated()`
-3. **Types** — boolean tokens, numeric parse rate ≥ 90% (integer vs float), else datetime parse rate (lower threshold if the name looks like a date), else string
-4. **Numeric stats** — min, max, mean, median, std
-5. **Outliers** — Tukey IQR (`1.5 * IQR`); skipped for near-unique identifier columns
-6. **Categorical inconsistency** — same value after lowercasing/whitespace collapse (`Delhi` / `delhi` / `DELHI`); ignored when cardinality is very high
-7. **Empty columns** — every value missing
-8. **Constant columns** — one unique non-null value
-9. **Invalid dates/types** — values that fail to parse once the column type is inferred
-
-## Setup instructions
+## Running locally
 
 ### Prerequisites
 
 - Node.js 18+
-- Python 3.10+ with Pandas and NumPy
-- MySQL 8 (or use Docker Compose and skip local MySQL)
+- Python 3.10+ with pip
+- PostgreSQL (or use Docker Compose which includes it)
 
-### Local (without Docker)
-
-```bash
-copy .env.example .env
-```
-
-Edit `.env` with your MySQL credentials. Create the database:
-
-```sql
-CREATE DATABASE dataset_quality;
-```
+### Without Docker
 
 ```bash
+# Clone and install
+git clone https://github.com/harsshks/DataLens.git
+cd DataLens
+cp .env.example .env        # fill in DB credentials
 npm install
 pip install -r analysis/requirements.txt
+
+# Run
 npm run dev
 ```
 
 API: `http://localhost:3000`  
 Swagger: `http://localhost:3000/api/docs`
 
-On some systems the Python executable is `python3`. Set `PYTHON_BIN=python3` in `.env` if uploads fail with an analysis error.
-
-## Environment variables
-
-See `.env.example`.
-
-| Variable | Purpose |
-| --- | --- |
-| `PORT` | HTTP port |
-| `DB_*` | MySQL connection |
-| `JWT_SECRET` | Signing key (change this) |
-| `UPLOAD_DIR` | Where CSVs are stored |
-| `MAX_FILE_SIZE_MB` | Upload cap (default 10) |
-| `PYTHON_BIN` | Python executable |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Optional admin seeded on startup |
-
-## Docker instructions
+### With Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-- API: `http://localhost:3000`
-- Swagger: `http://localhost:3000/api/docs`
-- MySQL: `localhost:3306` (user `root`, password `changeme`)
+API: `http://localhost:3000` — Demo admin: `admin@example.com` / `AdminPass123`
 
-Demo admin (from compose env): `admin@example.com` / `AdminPass123`
-
-Stop:
+### Frontend
 
 ```bash
-docker compose down
+cd frontend
+cp .env.example .env        # set VITE_API_URL
+npm install
+npm run dev
 ```
+
+---
 
 ## Running tests
 
-Tests use an in-memory SQLite database. Dataset HTTP tests mock the Python process; `tests/analysis.test.js` runs the real script.
+Tests use an in-memory SQLite database — no external dependencies needed.
 
 ```bash
 pip install -r analysis/requirements.txt
 npm test
 ```
 
-## Swagger documentation
+---
 
-Open `/api/docs` after the server starts. Click **Authorize** and paste `Bearer <token>` after login.
+## Environment variables
 
-## Example API requests
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Token signing key |
+| `PORT` | HTTP port (default 3000) |
+| `UPLOAD_DIR` | File storage directory |
+| `MAX_FILE_SIZE_MB` | Upload size limit (default 10) |
+| `PYTHON_BIN` | Python executable (`python` or `python3`) |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Optional admin seeded on startup |
+| `CORS_ORIGIN` | Allowed frontend origin(s), comma-separated |
 
-Register:
-
-```bash
-curl -X POST http://localhost:3000/api/auth/register ^
-  -H "Content-Type: application/json" ^
-  -d "{\"name\":\"Harsh\",\"email\":\"harsh@example.com\",\"password\":\"password123\"}"
-```
-
-Login:
-
-```bash
-curl -X POST http://localhost:3000/api/auth/login ^
-  -H "Content-Type: application/json" ^
-  -d "{\"email\":\"harsh@example.com\",\"password\":\"password123\"}"
-```
-
-Upload (PowerShell):
-
-```powershell
-$token = "<paste JWT>"
-curl.exe -X POST http://localhost:3000/api/datasets `
-  -H "Authorization: Bearer $token" `
-  -F "name=sample-cities" `
-  -F "file=@docs/sample-dataset.csv"
-```
-
-Quality report:
-
-```powershell
-curl.exe http://localhost:3000/api/datasets/1/quality -H "Authorization: Bearer $token"
-```
-
-Example success body:
-
-```json
-{
-  "success": true,
-  "data": {
-    "dataset_id": 1,
-    "quality_score": 87,
-    "summary": {
-      "rows": 10,
-      "columns": 7,
-      "missing_cells": 12,
-      "duplicate_rows": 1,
-      "outlier_values": 1
-    },
-    "issues": [
-      {
-        "type": "MISSING_VALUES",
-        "severity": "MEDIUM",
-        "column": "income",
-        "count": 1,
-        "description": "1 values are missing in 'income' (10.0%)"
-      }
-    ]
-  }
-}
-```
-
-Example error:
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "INVALID_FILE",
-    "message": "Only CSV files are supported"
-  }
-}
-```
-
-Upload a cleaner second version, then compare:
-
-```powershell
-curl.exe -X POST http://localhost:3000/api/datasets/1/versions `
-  -H "Authorization: Bearer $token" `
-  -F "file=@docs/sample-dataset-v2.csv"
-
-curl.exe http://localhost:3000/api/datasets/1/compare/1/2 -H "Authorization: Bearer $token"
-```
-
-## Future improvements
-
-- Asynchronous analysis (queue + status polling) for large files
-- Column-level quality trends across many versions
-- Configurable scoring weights per project
-- Parquet/JSON upload in addition to CSV
-- Stronger integration tests against a real MySQL instance in CI
-
-These are optional follow-ups, not claims about the current system.
+See `.env.example` for a full template.
